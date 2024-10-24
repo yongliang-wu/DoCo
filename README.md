@@ -1,6 +1,5 @@
 # [Preprint] Unlearning Concepts in Diffusion Model via Concept Domain Correction and Concept Preserving Gradient
-
-
+This repository contains the PyTorch implementation for the preprint paper [Unlearning Concepts in Diffusion Model via Concept Domain Correction and Concept Preserving Gradient](https://arxiv.org/abs/2405.15304).
 ## Getting Started
 
 ```
