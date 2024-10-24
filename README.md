@@ -107,6 +107,9 @@ accelerate launch train.py \
           --gradient_clip
 ```
 
+### Checkpoint
+To be achieved.
+
 ### Inference
 
 ```python
@@ -119,8 +122,6 @@ image = pipe("painting of a house in the style of van gogh", num_inference_steps
 
 image.save("vangogh.png")
 ```
-### Checkpoint
-
 
 ### Evaluation
 For further details, please refer to the GitHub repository of [SPM](https://github.com/Con6924/SPM).
