@@ -6,12 +6,12 @@ This repository contains the PyTorch implementation for the preprint paper [Unle
 <img width="700" alt="image" src="https://github.com/user-attachments/assets/2b448503-5dd9-42c5-a731-509cbfef659f">
 
 ## Getting Started
-
 ```
 conda create -n unlearn python=3.10
 conda activate unlearn
 pip install -r requirements.txt
 ```
+Please refer to the repository [Concept Ablation](https://github.com/nupurkmr9/concept-ablation) for more details.
 
 ### Training
 
@@ -119,6 +119,7 @@ image = pipe("painting of a house in the style of van gogh", num_inference_steps
 
 image.save("vangogh.png")
 ```
+### Checkpoint
 
 
 ### Evaluation
