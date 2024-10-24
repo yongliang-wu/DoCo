@@ -11,7 +11,7 @@ conda create -n unlearn python=3.10
 conda activate unlearn
 pip install -r requirements.txt
 ```
-Please refer to the repository [Concept Ablation](https://github.com/nupurkmr9/concept-ablation) for more details.
+Please refer to the repository [https://github.com/nupurkmr9/concept-ablation](https://github.com/nupurkmr9/concept-ablation/blob/main/diffusers/README.md) for more details.
 
 ### Training
 
