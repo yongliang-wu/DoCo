@@ -111,6 +111,7 @@ accelerate launch train.py \
 To be achieved.
 
 ### Inference
+You can download our checkpoint from this [Google Drive link](https://drive.google.com/drive/folders/1xPe4BDUa2Rn8jQ90-Onr4kq6Mr4Oip7f?usp=sharing).
 
 ```python
 from model_pipeline import CustomDiffusionPipeline
