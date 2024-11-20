@@ -14,6 +14,46 @@ pip install -r requirements.txt
 Please refer to the repository [https://github.com/nupurkmr9/concept-ablation](https://github.com/nupurkmr9/concept-ablation/blob/main/diffusers/README.md) for more details.
 
 ### Training
+Add the following code to the  `site-packages/diffusers/schedulers/scheduling_ddpm.py` after `step` function:
+```python
+def step_batch(
+        self,
+        model_output: torch.FloatTensor,
+        timesteps: torch.LongTensor,
+        sample: torch.FloatTensor,
+        generator=None,
+        return_dict: bool = True,
+    ) -> Union[DDPMSchedulerOutput, Tuple]:
+        num_inference_steps = self.num_inference_steps if self.num_inference_steps else self.config.num_train_timesteps
+        prev_ts = timesteps - self.config.num_train_timesteps // num_inference_steps
+
+        if model_output.shape[1] == sample.shape[1] * 2 and self.variance_type in ["learned", "learned_range"]:
+            model_output, predicted_variance = torch.split(model_output, sample.shape[1], dim=1)
+        else:
+            predicted_variance = None
+
+        alpha_prod_ts = self.alphas_cumprod[timesteps]
+        alpha_prod_ts_prev = self.alphas_cumprod[torch.clamp(prev_ts, min=0)]
+        beta_prod_ts = 1 - alpha_prod_ts
+        beta_prod_ts_prev = 1 - alpha_prod_ts_prev
+        current_alpha_ts = alpha_prod_ts / alpha_prod_ts_prev
+        current_beta_ts = 1 - current_alpha_ts
+
+        alpha_prod_ts = alpha_prod_ts.unsqueeze(1).unsqueeze(2).unsqueeze(3)
+        beta_prod_ts = beta_prod_ts.unsqueeze(1).unsqueeze(2).unsqueeze(3)
+
+        if self.config.prediction_type == "epsilon":
+            pred_original_sample = (sample - beta_prod_ts ** (0.5) * model_output) / alpha_prod_ts ** (0.5)
+        elif self.config.prediction_type == "sample":
+            pred_original_sample = model_output
+        elif self.config.prediction_type == "v_prediction":
+            pred_original_sample = (alpha_prod_ts**0.5) * sample - (beta_prod_ts**0.5) * model_output
+        else:
+            raise ValueError(
+                f"prediction_type given as {self.config.prediction_type} must be one of `epsilon`, `sample` or"
+                " `v_prediction`  for the DDPMScheduler."
+            )
+```
 
 **Unlearning Style**
 

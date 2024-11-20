@@ -374,7 +374,7 @@ def parse_args(input_args=None):
         "--dlr",
         type=float,
         default=1e-2,
-        help="Initial learning rate (after the potential warmup period) to use.",
+        help="Initial learning rate of the discriminator.",
     )
     parser.add_argument(
         "--scale_lr",
@@ -551,7 +551,7 @@ def parse_args(input_args=None):
         "--lambda_",
         type=float,
         default=1.0,
-        help="Number of steps for the warmup training of the discriminator.",
+        help="The gradient scale for the discriminator.",
     )
     parser.add_argument(
         "--multi_ckpt_path",
@@ -705,7 +705,7 @@ def main(args):
                 torch_dtype = torch.float16
             elif args.prior_generation_precision == "bf16":
                 torch_dtype = torch.bfloat16
-            # 创建了 diffusion model here
+
             pipeline = DiffusionPipeline.from_pretrained(
                 args.pretrained_model_name_or_path,
                 torch_dtype=torch_dtype,
@@ -783,8 +783,6 @@ def main(args):
             num_new_images = args.num_class_images
             logger.info(f"Number of class images to sample: {num_new_images}.")
 
-
-            # 在这里创造了很多 images
             sample_dataset = PromptDataset(class_prompt_collection, num_new_images)
             sample_dataloader = torch.utils.data.DataLoader(
                 sample_dataset, batch_size=args.sample_batch_size
@@ -798,7 +796,6 @@ def main(args):
                 os.remove(f"{class_images_dir}/images.txt")
 
 
-            # 根据每个提示词在这里生成图片
             for example in tqdm(
                 sample_dataloader,
                 desc="Generating class images",
@@ -916,8 +913,6 @@ def main(args):
     vae.requires_grad_(False)
     if args.parameter_group != "embedding":
         text_encoder.requires_grad_(False)
-
-    # 设置梯度是否传播
 
     unet = create_custom_diffusion(unet, args.parameter_group)
 
@@ -1097,7 +1092,6 @@ def main(args):
     args.num_train_epochs = math.ceil(args.max_train_steps / num_update_steps_per_epoch)
 
     # Train!
-    # 从这里开始训练
     total_batch_size = (
         args.train_batch_size
         * accelerator.num_processes
@@ -1157,7 +1151,6 @@ def main(args):
         else:
             unet.train()
 
-        # 在这里传播梯度
         for step, batch in enumerate(train_dataloader):
             # Skip steps until we reach the resumed step
             if (
@@ -1199,6 +1192,8 @@ def main(args):
                 noisy_latents = noise_scheduler.add_noise(latents, noise, timesteps)
 
                 # Get the text embedding for conditioning
+
+                text_encoder.to(accelerator.device)
                 encoder_hidden_states = text_encoder(batch["input_ids"])[0]
                 encoder_anchor_hidden_states = text_encoder(batch["input_anchor_ids"])[
                     0
@@ -1222,10 +1217,6 @@ def main(args):
                         timesteps[: encoder_anchor_hidden_states.size(0)],
                         encoder_anchor_hidden_states,
                     ).sample
-
-                    # shadow_pred = shadow_unet(
-                    #     noisy_latents[: encoder_anchor_hidden_states.size(0)], timesteps[: encoder_anchor_hidden_states.size(0)], encoder_hidden_states[: encoder_anchor_hidden_states.size(0)]
-                    # ).sample
 
                 # Get the target for loss depending on the prediction type
                 if args.loss_type_reverse == "model-based":
@@ -1330,8 +1321,6 @@ def main(args):
                 loss_fake_D = loss_fake_D_1
 
                 loss_D = loss_fake_D + loss_real_D
-
-                # loss_D = loss_fake_D + loss_real_D
 
                 accelerator.backward(loss_D)
 

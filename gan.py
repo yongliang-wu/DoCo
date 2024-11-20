@@ -9,11 +9,10 @@ from torch.autograd import Variable
 import torch.nn as nn
 import torch
 from torch.optim import RMSprop
-from pg_modules.discriminator import ProjectedDiscriminator
 
 class PatchGANDiscriminator(nn.Module):
     # input channel = 4 for latent noise, 3 for real img
-    def __init__(self, input_channel = 4):
+    def __init__(self, input_channel=4):
         super(PatchGANDiscriminator, self).__init__()
 
         def discriminator_block(in_filters, out_filters, normalization=True):
@@ -35,18 +34,16 @@ class PatchGANDiscriminator(nn.Module):
     def forward(self, img):
         return self.model(img)
 
-def init_discriminator(lr = 0.005, b1 = 0.5, b2 = 0.999):
+def init_discriminator(lr=0.005, b1=0.5, b2=0.999):
     discriminator = PatchGANDiscriminator()
-    # discriminator = ProjectedDiscriminator()
-    # discriminator.feature_network.requires_grad_(False)
 
     criterion = torch.nn.BCEWithLogitsLoss()
 
-    optimizer_D = torch.optim.Adam(discriminator.parameters(), lr = lr, betas=(b1, b2))
+    optimizer_D = torch.optim.Adam(discriminator.parameters(), lr=lr, betas=(b1, b2))
 
     return discriminator, criterion, optimizer_D
 
-def init_WGAN(unet, lr_G = 4e-6, lr_D = 0.00005):
+def init_WGAN(unet, lr_G=4e-6, lr_D=0.00005):
     discriminator = nn.SyncBatchNorm.convert_sync_batchnorm(WGANDiscriminator(4))
     critic_optimizer_D = RMSprop(discriminator.parameters(), lr=lr_D)
     critic_optimizer_G = RMSprop(unet, lr=lr_G)
@@ -102,20 +99,23 @@ class WGAN(nn.Module):
         return self.net(x)
 
 
-if __name__== "__main__":
-
+if __name__ == "__main__":
+    # Assuming real_img and generator are defined elsewhere in the code
     discriminator, criterion, optimizer_D = init_discriminator()
     batch_size = 4
-    real_out = discriminator(real_img)                          
+    real_img = torch.randn(batch_size, 3, 64, 64).cuda()  # Example placeholder for real_img
+    generator = lambda: torch.randn(batch_size, 3, 64, 64).cuda()  # Example placeholder for generator
+
+    real_out = discriminator(real_img)
     real_label = Variable(torch.ones(batch_size, 1)).cuda()
-    fake_label = Variable(torch.ones(batch_size, 1)).cuda()
-    loss_real_D = criterion(real_out, real_label)               
-    real_scores = real_out                                     
-    fake_img = generator().detach()                                    
-    fake_out = discriminator(fake_img)                                  
-    loss_fake_D = criterion(fake_out, fake_label)                       
-    fake_scores = fake_out                                             
-    loss_D = loss_real_D + loss_fake_D                  
-    optimizer_D.zero_grad()                             
-    loss_D.backward()                                   
-    optimizer_D.step()                                  
+    fake_label = Variable(torch.zeros(batch_size, 1)).cuda()  # Corrected to zeros for fake labels
+    loss_real_D = criterion(real_out, real_label)
+    real_scores = real_out
+    fake_img = generator().detach()
+    fake_out = discriminator(fake_img)
+    loss_fake_D = criterion(fake_out, fake_label)
+    fake_scores = fake_out
+    loss_D = loss_real_D + loss_fake_D
+    optimizer_D.zero_grad()
+    loss_D.backward()
+    optimizer_D.step()
