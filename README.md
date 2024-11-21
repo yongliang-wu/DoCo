@@ -1,9 +1,16 @@
 # [Preprint] Unlearning Concepts in Diffusion Model via Concept Domain Correction and Concept Preserving Gradient
+## Introduction
 This repository contains the PyTorch implementation for the preprint paper [Unlearning Concepts in Diffusion Model via Concept Domain Correction and Concept Preserving Gradient](https://arxiv.org/abs/2405.15304).
 
-<img width="700" alt="image" src="https://github.com/user-attachments/assets/3b3fd95c-7b2d-4843-bf5b-4d8fe6498718">
+In this paper, we propose DoCo (Domain Correction), a novel concept domain correction framework for machine unlearning in text-to-image diffusion models. Our method addresses two major challenges in existing machine unlearning approaches: limited generalization and utility degradation. DoCo achieves comprehensive concept unlearning through:
 
-<img width="700" alt="image" src="https://github.com/user-attachments/assets/2b448503-5dd9-42c5-a731-509cbfef659f">
+1. A domain correction mechanism that aligns the output domains of sensitive and anchor concepts via adversarial training, ensuring effective unlearning across both seen and unseen prompts.
+
+2. A concept-preserving gradient surgery technique that mitigates conflicting gradient components, maintaining the model's overall utility while selectively removing targeted concepts.
+
+Our experiments demonstrate superior performance in unlearning various types of concepts (instances, styles, and offensive content) while preserving model functionality, even for out-of-distribution prompts.
+
+<img width="700" alt="image" src="https://github.com/user-attachments/assets/3b3fd95c-7b2d-4843-bf5b-4d8fe6498718">
 
 ## Getting Started
 ```
@@ -11,11 +18,11 @@ conda create -n DoCo python=3.10
 conda activate DoCo
 pip install -r requirements.txt
 ```
-Please refer to the repository [https://github.com/nupurkmr9/concept-ablation](https://github.com/nupurkmr9/concept-ablation/blob/main/diffusers/README.md) for more details.
 
 ### Training
-**Unlearning Style**
+Before training, please replace the `site-packages/diffusers/schedulers/scheduling_ddpm.py` file with the `scheduling_ddpm.py` file provided in this repository. Our version includes an additional `step_batch` function and modifications to the `_get_variance` function to enable batch processing.
 
+**Unlearning Style**
 Setup accelerate config and pretrained model and then launch training. 
 
 ```
@@ -32,14 +39,13 @@ accelerate launch train.py \
           --concept_type style \
           --resolution=512  \
           --train_batch_size=8 \
-          --learning_rate=2e-6  \
-          --max_train_steps=1000 \
+          --learning_rate=6e-6  \
+          --max_train_steps=2000 \
           --scale_lr --hflip --noaug \
           --parameter_group cross-attn \
           --allow_tf32 \
           --enable_xformers_memory_efficient_attention \
-          --warm_up=200 \
-          --prior_loss_weight=0 \
+          --warm_up=1000 \
           --with_prior_preservation \
           --lambda_ 1 \
           --gradient_clip \
@@ -51,28 +57,27 @@ accelerate launch train.py \
 ```
 accelerate config
 export MODEL_NAME="CompVis/stable-diffusion-v1-4"
-export OPENAI_API_KEY="provide-your-api-key"
-export OUTPUT_DIR="logs_ablation/r2d2"
+export OPENAI_API_KEY="provide-your-openai-api-key"
+export OUTPUT_DIR="logs_ablation/parachute"
 
 accelerate launch train.py \
           --pretrained_model_name_or_path=$MODEL_NAME  \
-          --output_dir=./logs_ablation/r2d2 \
-          --class_data_dir=./data/samples_robot/ \
-          --class_prompt="robot" \
-          --caption_target "robot+r2d2" \
+          --output_dir=./logs_ablation/parachute \
+          --class_data_dir=./data/samples_airplane/ \
+          --class_prompt="airplane" \
+          --caption_target "airplane+parachute" \
           --concept_type object \
           --resolution=512  \
           --train_batch_size=8  \
-          --learning_rate=2e-6  \
-          --max_train_steps=1000 \
+          --learning_rate=6e-6  \
+          --max_train_steps=2000 \
           --scale_lr --hflip \
           --parameter_group cross-attn \
           --enable_xformers_memory_efficient_attention \
-          --warm_up=200 \
-          --prior_loss_weight=0 \
+          --warm_up=1000 \
           --with_prior_preservation \
           --dlr 0.0001 \
-          --lambda_ 0.5 \
+          --lambda_ 1 \
           --gradient_clip
 ```
 
@@ -81,7 +86,7 @@ accelerate launch train.py \
 ```
 accelerate config
 export MODEL_NAME="CompVis/stable-diffusion-v1-4"
-export OPENAI_API_KEY="provide-your-api-key"
+export OPENAI_API_KEY="provide-your-openai-api-key"
 export OUTPUT_DIR="logs_ablation/nudity"
 
 accelerate launch train.py \
@@ -93,16 +98,15 @@ accelerate launch train.py \
           --concept_type object \
           --resolution=512  \
           --train_batch_size=8  \
-          --learning_rate=2e-6  \
-          --max_train_steps=1000 \
+          --learning_rate=6e-6  \
+          --max_train_steps=2000 \
           --scale_lr --hflip \
           --parameter_group cross-attn \
           --enable_xformers_memory_efficient_attention \
-          --warm_up=200 \
-          --prior_loss_weight=0 \
+          --warm_up=1000 \
           --with_prior_preservation \
           --dlr 0.0001 \
-          --lambda_ 0.5 \
+          --lambda_ 1 \
           --gradient_clip
 ```
 
@@ -121,7 +125,7 @@ image.save("vangogh.png")
 ```
 
 ### Evaluation
-For further details, please refer to the GitHub repository of [SPM](https://github.com/Con6924/SPM).
+Please refer to the GitHub repository of [SPM](https://github.com/Con6924/SPM).
 
 ### Acknowledgements
 We extend our gratitude to the following repositories for their contributions and resources:
@@ -130,5 +134,5 @@ We extend our gratitude to the following repositories for their contributions an
 - [Concept Ablation](https://github.com/nupurkmr9/concept-ablation)
 - [Erasing](https://github.com/rohitgandikota/erasing)
 
-Their work has significantly contributed to the development of our work.
+Their works have significantly contributed to the development of our work.
 

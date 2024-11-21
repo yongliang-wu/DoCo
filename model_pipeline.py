@@ -192,9 +192,9 @@ class CustomDiffusionPipeline(StableDiffusionPipeline):
         tokenizer: CLIPTokenizer,
         unet: UNet2DConditionModel,
         scheduler: SchedulerMixin,
-        safety_checker: StableDiffusionSafetyChecker,
+        safety_checker: None,
         feature_extractor: CLIPFeatureExtractor,
-        requires_safety_checker: bool = True,
+        requires_safety_checker: bool = False,
         modifier_token_id: list = [],
     ):
         super().__init__(vae,
@@ -202,9 +202,9 @@ class CustomDiffusionPipeline(StableDiffusionPipeline):
                          tokenizer,
                          unet,
                          scheduler,
-                         safety_checker,
+                         None,
                          feature_extractor,
-                         requires_safety_checker)
+                         None)
 
         self.modifier_token_id = modifier_token_id
 

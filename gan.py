@@ -34,7 +34,7 @@ class PatchGANDiscriminator(nn.Module):
     def forward(self, img):
         return self.model(img)
 
-def init_discriminator(lr=0.005, b1=0.5, b2=0.999):
+def init_discriminator(lr=0.0001, b1=0.5, b2=0.999):
     discriminator = PatchGANDiscriminator()
 
     criterion = torch.nn.BCEWithLogitsLoss()

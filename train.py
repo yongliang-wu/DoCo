@@ -13,7 +13,6 @@ import random
 import cv2
 from PIL import Image
 import torchvision
-import gc
 
 import numpy as np
 import torch
@@ -385,7 +384,7 @@ def parse_args(input_args=None):
     parser.add_argument(
         "--dataloader_num_workers",
         type=int,
-        default=0,
+        default=2,
         help=(
             "Number of subprocesses to use for data loading. 0 means that the data will be loaded in the main process."
         ),
@@ -417,11 +416,6 @@ def parse_args(input_args=None):
         type=int,
         default=500,
         help="Number of steps for the warmup in the lr scheduler.",
-    )
-    parser.add_argument(
-        "--use_8bit_adam",
-        action="store_true",
-        help="Whether or not to use 8-bit Adam from bitsandbytes.",
     )
     parser.add_argument(
         "--adam_beta1",
@@ -602,14 +596,12 @@ def main(args):
         np.random.seed(seed)     # Numpy module
         torch.manual_seed(seed)  # PyTorch
         
-        # 如果使用 CUDA 的话
         if torch.cuda.is_available():
             torch.cuda.manual_seed(seed)
             torch.cuda.manual_seed_all(seed)  # if use multi-GPU
             torch.backends.cudnn.deterministic = True
             torch.backends.cudnn.benchmark = False
         
-        # 设置环境变量
         os.environ['PYTHONHASHSEED'] = str(seed)
             
     # If passed along, set the training seed now.
@@ -964,19 +956,6 @@ def main(args):
         # if args.with_prior_preservation:
         #     args.learning_rate = args.learning_rate * 2.0
 
-    # Use 8-bit Adam for lower memory usage or to fine-tune the model in 16GB GPUs
-    if args.use_8bit_adam:
-        try:
-            import bitsandbytes as bnb
-        except ImportError:
-            raise ImportError(
-                "To use 8-bit Adam, please install the bitsandbytes library: `pip install bitsandbytes`."
-            )
-
-        optimizer_class = bnb.optim.AdamW8bit
-    else:
-        optimizer_class = torch.optim.AdamW
-
     # Adding a modifier token which is optimized ####
     # Code taken from https://github.com/huggingface/diffusers/blob/main/examples/textual_inversion/textual_inversion.py
     modifier_token_id = []
@@ -1016,6 +995,7 @@ def main(args):
         if args.parameter_group == "full-weight":
             params_to_optimize = itertools.chain(unet.parameters())
 
+    optimizer_class = torch.optim.AdamW
     # Optimizer creation
     optimizer = optimizer_class(
         params_to_optimize,
@@ -1072,15 +1052,9 @@ def main(args):
         num_training_steps=args.max_train_steps * args.gradient_accumulation_steps,
     )
 
-    # Prepare everything with our `accelerator`.
-    if args.parameter_group == "embedding":
-        text_encoder, optimizer, train_dataloader, lr_scheduler, lr_scheduler_D, discriminator = accelerator.prepare(
-            text_encoder, optimizer, train_dataloader, lr_scheduler, lr_scheduler_D, discriminator
-        )
-    else:
-        unet, optimizer, train_dataloader, lr_scheduler, lr_scheduler_D, discriminator, shadow_unet = accelerator.prepare(
-            unet, optimizer, train_dataloader, lr_scheduler, lr_scheduler_D, discriminator, shadow_unet
-        )
+    unet, optimizer, train_dataloader, lr_scheduler, lr_scheduler_D, discriminator, shadow_unet = accelerator.prepare(
+        unet, optimizer, train_dataloader, lr_scheduler, lr_scheduler_D, discriminator, shadow_unet
+    )
 
     # We need to recalculate our total training steps as the size of the training dataloader may have changed.
     num_update_steps_per_epoch = math.ceil(
@@ -1146,10 +1120,8 @@ def main(args):
     progress_bar.set_description("Steps")
 
     for epoch in range(first_epoch, args.num_train_epochs):
-        if args.parameter_group == "embedding":
-            text_encoder.train()
-        else:
-            unet.train()
+
+        unet.train()
 
         for step, batch in enumerate(train_dataloader):
             # Skip steps until we reach the resumed step
@@ -1162,11 +1134,7 @@ def main(args):
                     progress_bar.update(1)
                 continue
 
-            with accelerator.accumulate(
-                unet
-            ) if args.parameter_group != "embedding" else accelerator.accumulate(
-                text_encoder
-            ):
+            with accelerator.accumulate(unet):
 
                 # Convert images to latent space
                 latents = vae.encode(
@@ -1178,7 +1146,6 @@ def main(args):
                 noise = torch.randn_like(latents).to(latents.device)
                 bsz = latents.shape[0]
                 # Sample a random timestep for each image
-                # print(noise_scheduler.config.num_train_timesteps)
                 timesteps = torch.randint(
                     0,
                     noise_scheduler.config.num_train_timesteps,
@@ -1188,11 +1155,9 @@ def main(args):
                 timesteps = timesteps.long()
 
                 # Add noise to the latents according to the noise magnitude at each timestep
-                # (this is the forward diffusion process)
                 noisy_latents = noise_scheduler.add_noise(latents, noise, timesteps)
 
                 # Get the text embedding for conditioning
-
                 text_encoder.to(accelerator.device)
                 encoder_hidden_states = text_encoder(batch["input_ids"])[0]
                 encoder_anchor_hidden_states = text_encoder(batch["input_anchor_ids"])[
@@ -1200,18 +1165,10 @@ def main(args):
                 ]
 
                 # Predict the noise residual
-                if global_step > args.warm_up:
-                    model_pred = unet(
-                        noisy_latents, timesteps, encoder_hidden_states
-                    ).sample
-                else:
-                    with torch.no_grad():
-                        model_pred = unet(
-                            noisy_latents, timesteps, encoder_hidden_states
-                        ).sample
-
+                model_pred = unet(
+                    noisy_latents, timesteps, encoder_hidden_states
+                ).sample
                 with torch.no_grad():
-                    # 
                     model_pred_anchor = shadow_unet(
                         noisy_latents[: encoder_anchor_hidden_states.size(0)],
                         timesteps[: encoder_anchor_hidden_states.size(0)],
@@ -1252,22 +1209,19 @@ def main(args):
                 if args.with_prior_preservation:
                     model_pred, model_pred_prior = torch.chunk(model_pred, 2, dim=0)
                     mask = torch.chunk(batch["mask"], 2, dim=0)[0]
-                    # target  = noise_scheduler.step_batch(target, timesteps[: encoder_anchor_hidden_states.size(0)], noisy_latents[: encoder_anchor_hidden_states.size(0)]).pred_original_sample   # anchor
-                    # model_pred_prior = noise_scheduler.step_batch(model_pred_prior, torch.chunk(timesteps, 2, dim=0)[1], torch.chunk(noisy_latents, 2, dim=0)[1]).pred_original_sample    # concept to erasing
+                    target  = noise_scheduler.step_batch(target, timesteps[: encoder_anchor_hidden_states.size(0)], noisy_latents[: encoder_anchor_hidden_states.size(0)]).pred_original_sample   # anchor
                     # shadow_pred  = noise_scheduler.step_batch(shadow_pred, timesteps, noisy_latents).pred_original_sample   # anchor
-                    # model_pred = noise_scheduler.step_batch(model_pred, torch.chunk(timesteps, 2, dim=0)[0], torch.chunk(noisy_latents, 2, dim=0)[0]).pred_original_sample    # concept to erasing
+                    model_pred = noise_scheduler.step_batch(model_pred, torch.chunk(timesteps, 2, dim=0)[0], torch.chunk(noisy_latents, 2, dim=0)[0]).pred_original_sample    # concept to erasing
                     # model_pred = noise_scheduler.step_batch(model_pred,timesteps, noisy_latents).pred_original_sample    # concept to erasing
+
                 else:
                     mask = batch["mask"]
-                    # target  = noise_scheduler.step_batch(target, timesteps, noisy_latents).pred_original_sample   # anchor
-
+                    target  = noise_scheduler.step_batch(target, timesteps, noisy_latents).pred_original_sample   # anchor
                     # shadow_pred  = noise_scheduler.step_batch(shadow_pred, timesteps, noisy_latents).pred_original_sample   # anchor
-                    # model_pred = noise_scheduler.step_batch(model_pred, timesteps, noisy_latents).pred_original_sample    # concept to erasing
+                    model_pred = noise_scheduler.step_batch(model_pred, timesteps, noisy_latents).pred_original_sample    # concept to erasing
                     
-                # with torch.no_grad():
-                #     target = vae.decode(target).sample
-                #     shadow_pred = vae.decode(shadow_pred).sample
-                #     model_pred = vae.decode(model_pred).sample
+
+
                 def norm_grad():
                     if accelerator.sync_gradients:
                         params_to_clip = (
@@ -1281,44 +1235,32 @@ def main(args):
                         )
                         accelerator.clip_grad_norm_(params_to_clip, args.max_grad_norm)
 
-                adj_params, total_params = 0, 0
+                loss_G = Variable(torch.zeros(1))
                 if global_step > args.warm_up:
                     out = discriminator(model_pred).squeeze(1)
-                    loss = criterion(out, torch.ones_like(out))
+                    loss = criterion(out, torch.zeros_like(out))
 
-                    # model_pred, model_pred_prior = torch.chunk(model_pred, 2, dim=0)
-                    # target_prior = torch.chunk(noise, 2, dim=0)[1]
                     if args.with_prior_preservation:
                         prior_loss = F.mse_loss(
                             model_pred_prior.float(), target_prior.float(), reduction="mean"
                         )
-                        loss_G = loss + args.prior_loss_weight * prior_loss
+                        loss_G = loss + args.prior_loss_weight * prior_loss * 0.1
                     else:
                         loss_G = loss
-                    
                     if args.gradient_clip:
-                        adj_params, total_params = adjust_gradient(unet, optimizer, accelerator, norm_grad, loss, prior_loss, lambda_=args.lambda_)
-                        lr_scheduler.step()
+                        adjust_gradient(unet, optimizer, accelerator, norm_grad, loss, prior_loss, lambda_=args.lambda_)
                     else:
                         accelerator.backward(loss_G)
-                        # norm_grad()
+                        norm_grad()
                         optimizer.step()
                         lr_scheduler.step()
                         optimizer.zero_grad()
-                else:
-                    loss_G = Variable(torch.zeros(1))
 
-                real_out_1 = discriminator(target.detach()).squeeze(1)
-                loss_real_D_1 = criterion(real_out_1, torch.ones_like(real_out_1))
-                # real_out_2 = discriminator(model_pred_prior.detach()).squeeze(1)
-                # loss_real_D_2 = criterion(real_out_2, torch.ones_like(real_out_2))
-                loss_real_D = loss_real_D_1
+                real_out = discriminator(target.detach()).squeeze(1)
+                loss_real_D = criterion(real_out, torch.zeros_like(real_out))
 
-                fake_out_1 = discriminator(model_pred.detach()).squeeze(1)
-                loss_fake_D_1 = criterion(fake_out_1, torch.zeros_like(fake_out_1))
-                # fake_out_2 = discriminator(shadow_pred.detach()).squeeze(1)
-                # loss_fake_D_2 = criterion(fake_out_2, torch.zeros_like(fake_out_2))
-                loss_fake_D = loss_fake_D_1
+                fake_out = discriminator(model_pred.detach()).squeeze(1)
+                loss_fake_D = criterion(fake_out, torch.ones_like(fake_out)) 
 
                 loss_D = loss_fake_D + loss_real_D
 
@@ -1351,7 +1293,7 @@ def main(args):
                 optimizer_D.step()
                 lr_scheduler_D.step()
                 optimizer_D.zero_grad()
-                
+                torch.cuda.empty_cache()
                 # optimizer.step()
 
                 # lr_scheduler.step()
@@ -1381,7 +1323,7 @@ def main(args):
                         )
                         logger.info(f"Saved state to {save_path}")
 
-            logs = {"loss_D": loss_D.detach().item(), "lr_D": lr_scheduler_D.get_last_lr()[0], "loss_G": loss_G.detach().item(), "lr_G": lr_scheduler.get_last_lr()[0], "adj_params_percent": adj_params/(total_params + 1e-8)}
+            logs = {"loss_D": loss_D.detach().item(), "lr_D": lr_scheduler_D.get_last_lr()[0], "loss_G": loss_G.detach().item(), "lr_G": lr_scheduler.get_last_lr()[0]}
             progress_bar.set_postfix(**logs)
             accelerator.log(logs, step=global_step)
 
