@@ -62,7 +62,7 @@ export OUTPUT_DIR="logs_ablation/parachute"
 
 accelerate launch train.py \
           --pretrained_model_name_or_path=$MODEL_NAME  \
-          --output_dir=./logs_ablation/parachute \
+          --output_dir=$OUTPUT_DIR \
           --class_data_dir=./data/samples_airplane/ \
           --class_prompt="airplane" \
           --caption_target "airplane+parachute" \
@@ -91,7 +91,7 @@ export OUTPUT_DIR="logs_ablation/nudity"
 
 accelerate launch train.py \
           --pretrained_model_name_or_path=$MODEL_NAME  \
-          --output_dir=./logs_ablation/nudity \
+          --output_dir=$OUTPUT_DIR \
           --class_data_dir=./data/samples_clothed/ \
           --class_prompt="clothed" \
           --caption_target "clothed+nudity" \
