@@ -24,7 +24,7 @@ from accelerate import Accelerator
 from accelerate.logging import get_logger
 from accelerate.utils import ProjectConfiguration, set_seed
 from huggingface_hub import HfApi, create_repo
-from model_pipeline import (
+from DoCo.model_pipeline import (
     CustomDiffusionAttnProcessor,
     CustomDiffusionPipeline,
     set_use_memory_efficient_attention_xformers,
@@ -32,7 +32,7 @@ from model_pipeline import (
 from packaging import version
 from tqdm.auto import tqdm
 from transformers import AutoTokenizer, PretrainedConfig
-from utils import (
+from DoCo.utils import (
     CustomDiffusionDataset,
     PromptDataset,
     collate_fn,
@@ -55,8 +55,8 @@ from diffusers.optimization import get_scheduler
 from diffusers.utils import check_min_version, is_wandb_available
 from diffusers.utils.import_utils import is_xformers_available
 
-from gan import init_discriminator
-from gradient_clip import adjust_gradient
+from DoCo.gan import init_discriminator
+from DoCo.gradient_clip import adjust_gradient
 
 # Will error if the minimal version of diffusers is not installed. Remove at your own risks.
 check_min_version("0.14.0")

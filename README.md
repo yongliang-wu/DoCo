@@ -20,7 +20,7 @@ pip install -r requirements.txt
 ```
 
 ### Training
-Before training, please replace the `site-packages/diffusers/schedulers/scheduling_ddpm.py` file with the `scheduling_ddpm.py` file provided in this repository. Our version includes an additional `step_batch` function and modifications to the `_get_variance` function to enable batch processing.
+Before training, please replace the `site-packages/diffusers/schedulers/scheduling_ddpm.py` file with the `DoCo/scheduling_ddpm.py` file provided in this repository. Our version includes an additional `step_batch` function and modifications to the `_get_variance` function to enable batch processing.
 
 **Unlearning Style**
 Setup accelerate config and pretrained model and then launch training. 
