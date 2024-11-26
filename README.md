@@ -14,6 +14,8 @@ Our experiments demonstrate superior performance in unlearning various types of 
 
 ## Getting Started
 ```
+git clone git@github.com:yongliang-wu/DoCo.git
+cd DoCo
 conda create -n DoCo python=3.10
 conda activate DoCo
 pip install -r requirements.txt
