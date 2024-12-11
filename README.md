@@ -1,7 +1,11 @@
 <h2 align="center">Unlearning Concepts in Diffusion Model via Concept Domain Correction and Concept Preserving Gradient</h2>
 
+## News
+
+* :fire: [2024.12.10] Our paper is accepted by AAAI-2025 !
+
 ## Introduction
-This repository contains the PyTorch implementation for the preprint paper [Unlearning Concepts in Diffusion Model via Concept Domain Correction and Concept Preserving Gradient](https://arxiv.org/abs/2405.15304).
+This repository contains the PyTorch implementation for the paper [Unlearning Concepts in Diffusion Model via Concept Domain Correction and Concept Preserving Gradient](https://arxiv.org/abs/2405.15304).
 
 In this paper, we propose DoCo (Domain Correction), a novel concept domain correction framework for machine unlearning in text-to-image diffusion models. Our method addresses two major challenges in existing machine unlearning approaches: limited generalization and utility degradation. DoCo achieves comprehensive concept unlearning through:
 
