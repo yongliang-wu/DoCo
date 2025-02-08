@@ -29,7 +29,10 @@ pip install -r requirements.txt
 ### Training
 Before training, please replace the `site-packages/diffusers/schedulers/scheduling_ddpm.py` file with the `DoCo/scheduling_ddpm.py` file provided in this repository. Our version includes an additional `step_batch` function and modifications to the `_get_variance` function to enable batch processing.
 
+**Note:** To achieve the best results, set different hyperparameters such as anchor concept, max_train_steps, warm_up, and learning_rate. These hyperparameters may vary depending on distinct concepts.
+
 **Unlearning Style**
+
 Setup accelerate config and pretrained model and then launch training. 
 
 ```
@@ -116,8 +119,6 @@ accelerate launch train.py \
           --lambda_ 1 \
           --gradient_clip
 ```
-
-Note: To achieve the best results, set different hyperparameters such as max_train_steps, warm_up, and learning_rate. These hyperparameters may vary depending on distinct concepts.
 
 ### Inference
 You can download our checkpoint from this [Google Drive link](https://drive.google.com/drive/folders/1xPe4BDUa2Rn8jQ90-Onr4kq6Mr4Oip7f?usp=sharing).
