@@ -123,7 +123,7 @@ Note: To achieve the best results, set different hyperparameters such as max_tra
 You can download our checkpoint from this [Google Drive link](https://drive.google.com/drive/folders/1xPe4BDUa2Rn8jQ90-Onr4kq6Mr4Oip7f?usp=sharing).
 
 ```python
-from model_pipeline import CustomDiffusionPipeline
+from DoCo.model_pipeline import CustomDiffusionPipeline
 import torch
 
 pipe = CustomDiffusionPipeline.from_pretrained("CompVis/stable-diffusion-v1-4", torch_dtype=torch.float16).to("cuda")
