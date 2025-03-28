@@ -137,6 +137,17 @@ image.save("vangogh.png")
 ### Evaluation
 Please refer to the GitHub repository of [SPM](https://github.com/Con6924/SPM).
 
+## Citation
+
+```bibtex
+@article{wu2024unlearning,
+  title={Unlearning concepts in diffusion model via concept domain correction and concept preserving gradient},
+  author={Wu, Yongliang and Zhou, Shiji and Yang, Mingzhuo and Wang, Lianzhe and Chang, Heng and Zhu, Wenbo and Hu, Xinting and Zhou, Xiao and Yang, Xu},
+  journal={arXiv preprint arXiv:2405.15304},
+  year={2024}
+}
+```
+
 ### Acknowledgements
 We extend our gratitude to the following repositories for their contributions and resources:
 
